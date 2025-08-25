@@ -1,0 +1,117 @@
+%%{
+  init: {
+    'themeVariables': {
+      'rankSpacing': 200,
+      'nodeSpacing': 80
+    }
+  }
+}%%
+graph LR
+    style default fill:#fff,stroke:#add8e6,stroke-width:2px,color:#36454F;
+    %% --- 風格定義 ---
+    classDef external fill:#fdebd0,stroke:#add8e6,stroke-width:2px,font-weight:bold,color:#36454F;
+    classDef internal fill:#d5f5e3,stroke:#add8e6,stroke-width:2px,font-weight:bold,color:#36454F;
+    classDef server fill:#eaf2f8,stroke:#add8e6,stroke-width:2px,font-weight:bold,color:#36454F;
+    classDef vpn fill:#e8daef,stroke:#add8e6,stroke-width:2px,font-weight:bold,color:#36454F;
+    classDef dmz fill:#fadbd8,stroke:#add8e6,stroke-width:2px,font-weight:bold,color:#36454F;
+    classDef other fill:#f2f3f4,stroke:#add8e6,stroke-width:2px,font-weight:bold,color:#36454F;
+
+  %% --- 節點定義 (來源區域) ---
+    subgraph ZONE_Source_upg-zone-port5 [來源: upg-zone-port5]
+        upg_zone_port5["upg-zone-port5"]
+    end
+
+  subgraph ZONE_Source_Trust_P1 [來源: Trust_P1]
+        Trust_P1["Trust_P1"]
+    end
+        subgraph ZONE_Source_ServerFarm [來源: ServerFarm]
+        ServerFarm["ServerFarm"]
+    end
+
+   subgraph ZONE_Source_SSL_VPN [來源: SSL-VPN tunnel interface]
+        SSL_VPN["SSL-VPN tunnel interface"]
+    end
+
+   subgraph ZONE_Source_dmz [來源: dmz]
+        dmz["dmz"]
+    end
+
+  subgraph ZONE_Source_HQ_to_NH [來源: HQ_to_NH]
+        HQ_to_NH["HQ_to-NH"]
+    end
+
+  subgraph ZONE_Source_HQ_to_GCP [來源: HQ_to_GCP]
+        HQ_to_GCP1["HQ_to_GCP1"]
+        HQ_to_GCP2["HQ_to_GCP2"]
+        HQ_to_GCP3_CHT1["HQ_to_GCP3_CHT1"]
+    end
+
+   subgraph ZONE_Source_any [來源: any]
+        any_source["any 來源"]
+    end
+    
+  %% --- 修改點: 將目標節點的定義移至此處 ---
+    subgraph ZONE_Targets_WAN [目標: WAN Interfaces]
+        direction LR
+        upg_zone_wan1["upg-zone-wan1"]
+        upg_zone_wan2["upg-zone-wan2"]
+    end
+
+  any_dest["any 目標"];
+    %% --- 修改結束 ---
+    
+   %% --- 流量關係定義 ---
+    upg_zone_port5 -- "ID:281 數聯資安<br/>ID:62 TW IP to WebMail<br/>ID:70 TW to Deltapath<br/><b><span style='color:green;'>接受</span></b>" --> ServerFarm;
+    upg_zone_port5 -- "ID:75 HACK<br/><b><span style='color:red;'>拒絕</span></b>" --x ServerFarm;
+    upg_zone_port5 -- "ID:203 20250724_Allen停用1<br/>ID:226 20230712_達暉UAT連線使用<br/><b><span style='color:green;'>接受</span></b>" --> Trust_P1;
+    upg_zone_port5 -- "ID:119 HACK<br/><b><span style='color:red;'>拒絕</span></b>" --x Trust_P1;
+
+   Trust_P1 -- "ID:210 MISPC<br/>ID:52 New-HPI-all<br/>ID:232 nms_to_Server<br/>...多數內部存取規則<br/><b><span style='color:green;'>接受</span></b>" --> ServerFarm;
+    Trust_P1 -- "ID:78 deny-access<br/><b><span style='color:red;'>拒絕</span></b>" --x ServerFarm;
+    Trust_P1 -- "ID:6 / 8 / 263 User Outbound<br/><b><span style='color:green;'>接受</span></b>" --> upg_zone_wan1;
+    Trust_P1 -- "ID:130 deny-out<br/>ID:5 / 179 拒絕特定IP/服務<br/><b><span style='color:red;'>拒絕</span></b>" --x upg_zone_wan1;
+    Trust_P1 -- "ID:10 / 106 / 108 User Outbound<br/><b><span style='color:green;'>接受</span></b>" --> upg_zone_wan2;
+    Trust_P1 -- "ID:79 deny-out2<br/>ID:72 / 73 拒絕特定IP/服務<br/><b><span style='color:red;'>拒絕</span></b>" --x upg_zone_wan2;
+    Trust_P1 -- "ID:12 Server-VM Outbound<br/><b><span style='color:green;'>接受</span></b>" --> upg_zone_port5;
+    Trust_P1 -- "ID:113 拒絕 SMTP SMTPS<br/><b><span style='color:red;'>拒絕</span></b>" --x upg_zone_port5;
+    Trust_P1 -- "ID:2 / 3 hpi_all_ip<br/><b><span style='color:green;'>接受</span></b>" --> SSL_VPN;
+
+   ServerFarm -- "ID:143-138 Server to Internal<br/><b><span style='color:green;'>接受</span></b>" --> Trust_P1;
+    ServerFarm -- "ID:45 / 109 / 188-169 Server Outbound<br/><b><span style='color:green;'>接受</span></b>" --> upg_zone_port5;
+    ServerFarm -- "ID:118 / 187 拒絕 SMB & 特定IP<br/><b><span style='color:red;'>拒絕</span></b>" --x upg_zone_port5;
+    ServerFarm -- "ID:46 / 196 veeambr<br/><b><span style='color:green;'>接受</span></b>" --> upg_zone_wan1;
+    ServerFarm -- "ID:252 / 111 拒絕 SMB & 特定IP<br/><b><span style='color:red;'>拒絕</span></b>" --x upg_zone_wan1;
+    ServerFarm -- "ID:47 Deltapath<br/>ID:116 / 256 Server Outbound<br/><b><span style='color:green;'>接受</span></b>" --> upg_zone_wan2;
+    ServerFarm -- "ID:129 / 110 拒絕 SMB & 特定IP<br/><b><span style='color:red;'>拒絕</span></b>" --x upg_zone_wan2;
+    ServerFarm -- "ID:236 全景IDExpert_PushGW<br/>ID:261 全景IDExpert_FIDOpus<br/><b><span style='color:green;'>接受</span></b>" --> upg_zone_port5;
+    ServerFarm -- "ID:262 HQ_to_GCP2<br/><b><span style='color:green;'>接受</span></b>" --> HQ_to_GCP2;
+    ServerFarm -- "ID:284 HQ_to_GCP1<br/><b><span style='color:green;'>接受</span></b>" --> HQ_to_GCP1;
+    ServerFarm -- "ID:0 HQ_to_GCP3_CHT1<br/><b><span style='color:green;'>接受</span></b>" --> HQ_to_GCP3_CHT1;
+
+   SSL_VPN -- "ID:74 SSLVPN_Sysmgt<br/>ID:141 DC<br/>ID:217-225 App Access<br/><b><span style='color:green;'>接受</span></b>" --> ServerFarm;
+    SSL_VPN -- "ID:48 SSLVPN_Sysmgt<br/>ID:124 SSLVPN_User<br/>ID:269 VPN測試網段<br/><b><span style='color:green;'>接受</span></b>" --> Trust_P1;
+    SSL_VPN -- "ID:227 SSLVPN to WAN<br/><b><span style='color:green;'>接受</span></b>" --> upg_zone_wan2;
+
+  dmz -- "ID:107 / 226<br/><b><span style='color:green;'>接受</span></b>" --> upg_zone_port5;
+    dmz -- "ID:102 / 131 Guest Wifi Outbound<br/><b><span style='color:green;'>接受</span></b>" --> upg_zone_wan1;
+    dmz -- "ID:103 / 104 Guest Wifi Outbound<br/><b><span style='color:green;'>接受</span></b>" --> upg_zone_wan2;
+    dmz -- "ID:115 拒絕特定IP<br/><b><span style='color:red;'>拒絕</span></b>" --x upg_zone_wan2;
+    dmz -- "ID:105 拒絕 PING<br/><b><span style='color:red;'>拒絕</span></b>" --x ServerFarm;
+    
+   HQ_to_NH -- "ID:241 / 243 / 244 / 239 / 268<br/><b><span style='color:green;'>接受</span></b>" --> ServerFarm;
+    HQ_to_GCP1 -- "ID:283<br/><b><span style='color:green;'>接受</span></b>" --> ServerFarm;
+    HQ_to_GCP2 -- "ID:265<br/><b><span style='color:green;'>接受</span></b>" --> ServerFarm;
+    HQ_to_GCP3_CHT1 -- "ID:264<br/><b><span style='color:green;'>接受</span></b>" --> ServerFarm;
+
+   any_source -- "ID:255 10.10.20.24_443_SmartGo Prod<br/>ID:273 10.10.30.26_443_SmartGo uat<br/><b><span style='color:green;'>接受</span></b>" --> ServerFarm;
+    any_source -- "ID:0 隱性拒絕<br/><b><span style='color:red;'>拒絕</span></b>" --x any_dest;
+
+  %% --- 節點風格套用 ---
+    class upg_zone_port5 external;
+    class Trust_P1 internal;
+    class ServerFarm server;
+    class SSL_VPN,HQ_to_NH,HQ_to_GCP1,HQ_to_GCP2,HQ_to_GCP3_CHT1 vpn;
+    class dmz dmz;
+    class any_source,any_dest other;
+    class upg_zone_wan1 external;
+    class upg_zone_wan2 external;
